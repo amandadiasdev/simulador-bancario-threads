@@ -1,0 +1,360 @@
+<meta charset="utf-8">
+<title>Threads na Prática</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#F3F5F8; --surface:#FFFFFF; --ink:#18212B; --muted:#5B6673; --line:#D7DDE5;
+  --accent:#0F7F86; --accent-soft:#DCEFF0; --code-bg:#EEF1F5;
+  --t1:#0F7F86; --t2:#C97A12; --t3:#6A5ACD; --t4:#C2405A;
+  --ok:#2E8B57; --bad:#C0392B; --warn:#B8860B;
+  --shared:#E7EEF6;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#101720; --surface:#182130; --ink:#E8EDF3; --muted:#9AA7B6; --line:#2A3646;
+    --accent:#3FB8BF; --accent-soft:#16333A; --code-bg:#0D131B;
+    --t1:#3FB8BF; --t2:#E9A23B; --t3:#9D8DF1; --t4:#E86F86;
+    --ok:#5CC98A; --bad:#F07167; --warn:#E3B341;
+    --shared:#1F2B3B;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#101720; --surface:#182130; --ink:#E8EDF3; --muted:#9AA7B6; --line:#2A3646;
+  --accent:#3FB8BF; --accent-soft:#16333A; --code-bg:#0D131B;
+  --t1:#3FB8BF; --t2:#E9A23B; --t3:#9D8DF1; --t4:#E86F86;
+  --ok:#5CC98A; --bad:#F07167; --warn:#E3B341;
+  --shared:#1F2B3B;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:16px;line-height:1.6}
+h1,h2,h3{font-family:"Bricolage Grotesque","IBM Plex Sans",sans-serif;text-wrap:balance;line-height:1.15;margin:0}
+h1{font-size:clamp(2.2rem,5vw,3.6rem);font-weight:700}
+h2{font-size:1.7rem;font-weight:700;margin-bottom:.6rem}
+h3{font-size:1.15rem;font-weight:600}
+code,.mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.92em}
+code{background:var(--code-bg);padding:.1em .35em;border-radius:4px}
+.wrap{max-width:74ch;margin:0 auto;padding:2.5rem 1.25rem 5rem}
+header{padding:3rem 0 2rem;border-bottom:1px solid var(--line);margin-bottom:2rem}
+.eyebrow{font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:600}
+.lead{font-size:1.15rem;color:var(--muted);max-width:60ch;margin-top:1rem}
+nav.toc{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:1.5rem}
+nav.toc a{font-size:.85rem;text-decoration:none;color:var(--ink);border:1px solid var(--line);padding:.3rem .75rem;border-radius:999px;background:var(--surface)}
+nav.toc a:hover,nav.toc a:focus-visible{border-color:var(--accent);color:var(--accent);outline:none}
+section{margin:3.2rem 0}
+section p{max-width:65ch}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:1.25rem;margin:1.25rem 0}
+.controls{display:flex;flex-wrap:wrap;gap:.75rem 1.25rem;align-items:center;margin-bottom:1rem}
+.controls label{display:flex;align-items:center;gap:.5rem;font-size:.9rem;color:var(--muted)}
+button{font:inherit;font-size:.9rem;font-weight:500;padding:.45rem .9rem;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+button:hover{border-color:var(--accent)}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button[disabled]{opacity:.45;cursor:not-allowed}
+button.active{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+input[type=range]{accent-color:var(--accent)}
+.note{font-size:.9rem;color:var(--muted);margin-top:.75rem}
+.callout{border-left:3px solid var(--accent);padding:.5rem 1rem;background:var(--accent-soft);border-radius:0 8px 8px 0;margin:1rem 0}
+.compare{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin:1rem 0}
+.compare .panel{margin:0}
+.compare h3{margin-bottom:.4rem}
+.compare ul{margin:0;padding-left:1.1rem;font-size:.95rem}
+/* memória */
+.mem{display:grid;grid-template-columns:150px 1fr;gap:.75rem;overflow-x:auto}
+.mem .shared{background:var(--shared);border:1px dashed var(--line);border-radius:8px;padding:.75rem;display:flex;flex-direction:column;gap:.4rem}
+.mem .threads{display:grid;gap:.6rem;grid-auto-flow:column;grid-auto-columns:minmax(120px,1fr)}
+.tcol{border-radius:8px;padding:.6rem;display:flex;flex-direction:column;gap:.4rem;border:2px solid var(--tc);background:var(--surface)}
+.tcol .tag{color:var(--tc);font-weight:600;font-size:.85rem}
+.cell{font-size:.82rem;padding:.3rem .5rem;border-radius:5px;background:var(--code-bg)}
+.mem .shared .title{font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+/* modelos */
+.model-svg{width:100%;max-width:520px;display:block;margin:0 auto}
+/* escalonador */
+.timeline{overflow-x:auto}
+.timeline table{border-collapse:separate;border-spacing:3px;font-family:"IBM Plex Mono",monospace;font-size:.8rem}
+.timeline th{color:var(--muted);font-weight:500;text-align:left;padding:0 .3rem}
+.timeline td{width:38px;height:30px;border-radius:4px;background:var(--code-bg);text-align:center;color:#fff;font-weight:500}
+.timeline td.idle{color:var(--muted);background:transparent;border:1px dashed var(--line)}
+.legend{display:flex;flex-wrap:wrap;gap:.75rem;font-size:.85rem;margin-top:.75rem}
+.legend span::before{content:"";display:inline-block;width:.8em;height:.8em;border-radius:3px;background:var(--tc);margin-right:.35em;vertical-align:-.1em}
+.readyq{font-size:.9rem;margin-top:.6rem;color:var(--muted)}
+/* corrida */
+.race{display:grid;grid-template-columns:1fr auto 1fr;gap:1rem;align-items:start}
+.thread-card{border:2px solid var(--tc);border-radius:8px;padding:.75rem}
+.thread-card h3{color:var(--tc);font-size:1rem;margin-bottom:.4rem}
+.instr{font-family:"IBM Plex Mono",monospace;font-size:.85rem;padding:.3rem .5rem;border-radius:4px;margin:.2rem 0;border:1px solid transparent}
+.instr.next{border-color:var(--tc);background:var(--code-bg)}
+.instr.done{opacity:.45;text-decoration:line-through}
+.reg{font-size:.85rem;margin-top:.5rem;color:var(--muted)}
+.counter{text-align:center;padding:.75rem 1rem;border-radius:8px;background:var(--shared);min-width:130px}
+.counter .val{font-family:"Bricolage Grotesque",sans-serif;font-size:2.6rem;font-weight:700;font-variant-numeric:tabular-nums}
+.counter .lbl{font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.lock{margin-top:.5rem;font-size:.8rem}
+.log{font-family:"IBM Plex Mono",monospace;font-size:.8rem;background:var(--code-bg);padding:.6rem .8rem;border-radius:6px;max-height:150px;overflow:auto;margin-top:1rem;min-height:2.4rem}
+.verdict{margin-top:.75rem;font-weight:600}
+.verdict.ok{color:var(--ok)}.verdict.bad{color:var(--bad)}
+/* quiz */
+.q{margin:1rem 0;padding-bottom:1rem;border-bottom:1px solid var(--line)}
+.q:last-child{border:none}
+.q p{font-weight:500;margin:0 0 .5rem}
+.q label{display:block;padding:.35rem .5rem;border-radius:6px;cursor:pointer;font-size:.95rem}
+.q label:hover{background:var(--code-bg)}
+.fb{font-size:.9rem;margin-top:.4rem;min-height:1.2em}
+.fb.ok{color:var(--ok)}.fb.bad{color:var(--bad)}
+@media (max-width:640px){.race{grid-template-columns:1fr}.counter{order:-1}}
+@media (prefers-reduced-motion:no-preference){.timeline td,.instr{transition:background .2s,opacity .2s}}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">Sistemas Operacionais</div>
+  <h1>Threads na Prática</h1>
+  <p class="lead">O que é uma thread, o que ela compartilha com as outras, como o sistema operacional a coloca para rodar e por que duas threads mexendo na mesma variável dão problema. Cada seção tem um painel para você experimentar.</p>
+  <nav class="toc">
+    <a href="#s1">1. Processo e thread</a>
+    <a href="#s2">2. Por que threads</a>
+    <a href="#s3">3. Modelos de mapeamento</a>
+    <a href="#s4">4. Escalonamento</a>
+    <a href="#s5">5. Condição de corrida</a>
+    <a href="#s6">6. Teste seu entendimento</a>
+  </nav>
+</header>
+
+<section id="s1">
+  <h2>1. Processo e thread</h2>
+  <p>Um <strong>processo</strong> é um programa em execução, com sua própria memória. Uma <strong>thread</strong> (fio de execução) é um caminho de execução dentro desse processo. Um processo tem pelo menos uma thread, e pode ter várias.</p>
+  <div class="callout">Pense em uma cozinha (o processo). Os cozinheiros (as threads) compartilham a geladeira, o fogão e a despensa. Mas cada cozinheiro tem as próprias mãos e a própria lista de "onde eu parei" na receita.</div>
+  <p>Na memória isso significa: as threads compartilham <strong>código, dados globais, heap e arquivos abertos</strong>. Cada thread tem, só para ela, <strong>registradores, contador de programa (PC) e pilha</strong>. O PC guarda "qual instrução vem agora". A pilha guarda variáveis locais e chamadas de função.</p>
+  <div class="panel">
+    <div class="controls">
+      <label>Threads no processo: <input id="nThreads" type="range" min="1" max="4" value="1"> <strong id="nThreadsVal" class="mono">1</strong></label>
+    </div>
+    <div class="mem">
+      <div class="shared">
+        <div class="title">Compartilhado</div>
+        <div class="cell">Código</div>
+        <div class="cell">Dados globais</div>
+        <div class="cell">Heap</div>
+        <div class="cell">Arquivos abertos</div>
+      </div>
+      <div class="threads" id="memThreads"></div>
+    </div>
+    <p class="note" id="memNote"></p>
+  </div>
+  <p>Por que isso importa: criar uma thread é barato, porque a memória já existe. Criar um processo novo exige copiar ou montar uma memória inteira. Em troca, um erro de uma thread pode derrubar o processo inteiro, porque todas moram na mesma casa.</p>
+</section>
+
+<section id="s2">
+  <h2>2. Por que usar threads</h2>
+  <p>Quatro motivos clássicos, com o exemplo de um navegador web:</p>
+  <div class="compare">
+    <div class="panel"><h3>Capacidade de resposta</h3><ul><li>Uma thread baixa a imagem, outra continua atendendo seus cliques.</li><li>A interface não congela.</li></ul></div>
+    <div class="panel"><h3>Compartilhamento de recursos</h3><ul><li>As threads já veem a mesma memória.</li><li>Não precisam de mecanismos extras para trocar dados.</li></ul></div>
+    <div class="panel"><h3>Economia</h3><ul><li>Criar e trocar de thread custa menos que criar e trocar de processo.</li><li>Menos memória duplicada.</li></ul></div>
+    <div class="panel"><h3>Escalabilidade</h3><ul><li>Com vários núcleos, várias threads rodam ao mesmo tempo de verdade.</li><li>Um processo de uma só thread usa só um núcleo.</li></ul></div>
+  </div>
+</section>
+
+<section id="s3">
+  <h2>3. Threads de usuário e de kernel</h2>
+  <p>Existem dois "níveis" de thread. <strong>Threads de usuário</strong> são gerenciadas por uma biblioteca dentro do programa, sem o kernel saber. <strong>Threads de kernel</strong> são gerenciadas pelo próprio sistema operacional, e só elas podem ser colocadas em um núcleo do processador.</p>
+  <p>A pergunta é: como as threads de usuário se conectam às de kernel? Escolha um modelo abaixo.</p>
+  <div class="panel">
+    <div class="controls" id="modelBtns">
+      <button data-m="m1" class="active">Muitos-para-um</button>
+      <button data-m="11">Um-para-um</button>
+      <button data-m="mm">Muitos-para-muitos</button>
+    </div>
+    <svg class="model-svg" id="modelSvg" viewBox="0 0 520 220" role="img" aria-label="Diagrama do modelo de mapeamento"></svg>
+    <p class="note" id="modelNote"></p>
+  </div>
+</section>
+
+<section id="s4">
+  <h2>4. Como o escalonador reveza as threads</h2>
+  <p>O <strong>escalonador</strong> é a parte do kernel que decide qual thread usa cada núcleo agora. Aqui ele usa <strong>round-robin</strong>: cada thread ganha uma fatia de tempo (o <em>quantum</em>), e depois vai para o fim da fila.</p>
+  <p>Trocar a thread que está no núcleo é a <strong>troca de contexto</strong>: o kernel salva os registradores e o PC da thread que sai, e carrega os da que entra. É por isso que cada thread precisa dos seus próprios registradores e PC.</p>
+  <div class="panel">
+    <div class="controls">
+      <label>Threads: <input id="schThreads" type="range" min="2" max="4" value="3"> <strong id="schThreadsVal" class="mono">3</strong></label>
+      <label>Núcleos: <input id="schCores" type="range" min="1" max="2" value="1"> <strong id="schCoresVal" class="mono">1</strong></label>
+      <button id="schStep">Avançar 1 tick</button>
+      <button id="schRun" class="primary">Executar tudo</button>
+      <button id="schReset">Reiniciar</button>
+    </div>
+    <div class="timeline" id="schTimeline"></div>
+    <div class="legend" id="schLegend"></div>
+    <p class="readyq" id="schQueue"></p>
+    <p class="note" id="schNote"></p>
+  </div>
+  <p>Repare na diferença: com <strong>1 núcleo</strong> as threads só se revezam. Isso é <strong>concorrência</strong>: parecem andar juntas, mas em cada instante só uma executa. Com <strong>2 núcleos</strong> duas executam no mesmo instante. Isso é <strong>paralelismo</strong>.</p>
+</section>
+
+<section id="s5">
+  <h2>5. Condição de corrida</h2>
+  <p>Duas threads compartilham a variável <code>contador</code>, que começa em 0. Cada uma quer somar 1. O resultado certo é 2. Mas <code>contador = contador + 1</code> não é uma instrução só: o processador faz <strong>três passos</strong>.</p>
+  <div class="callout">LOAD copia o valor da memória para um registrador da thread. ADD soma 1 no registrador. STORE grava o registrador de volta na memória. Entre um passo e outro, o escalonador pode trocar de thread.</div>
+  <p>Você é o escalonador. Escolha qual thread executa o próximo passo e veja o que acontece.</p>
+  <div class="panel">
+    <div class="controls">
+      <button id="stepA" style="--tc:var(--t1)">Passo da Thread A</button>
+      <button id="stepB" style="--tc:var(--t2)">Passo da Thread B</button>
+      <button id="stepRnd">Passo aleatório</button>
+      <button id="raceReset">Reiniciar</button>
+      <label><input type="checkbox" id="useLock"> Usar mutex (lock)</label>
+    </div>
+    <div class="race">
+      <div class="thread-card" id="cardA" style="--tc:var(--t1)"><h3>Thread A</h3><div id="instrA"></div><div class="reg" id="regA"></div></div>
+      <div class="counter"><div class="lbl">contador (memória)</div><div class="val" id="counterVal">0</div><div class="lock" id="lockState"></div></div>
+      <div class="thread-card" id="cardB" style="--tc:var(--t2)"><h3>Thread B</h3><div id="instrB"></div><div class="reg" id="regB"></div></div>
+    </div>
+    <div class="log" id="raceLog"></div>
+    <div class="verdict" id="raceVerdict"></div>
+  </div>
+  <p>Quando o resultado dá 1, aconteceu uma <strong>condição de corrida</strong>: o resultado depende da ordem em que as threads foram escalonadas. O trecho LOAD, ADD, STORE é uma <strong>seção crítica</strong>: só uma thread pode passar por ele por vez.</p>
+  <p>Ative o <strong>mutex</strong> (exclusão mútua). Ele funciona como uma chave: a thread que faz o LOAD pega a chave, e a outra fica esperando até o STORE devolver. Assim a sequência nunca é interrompida no meio, e o resultado é sempre 2.</p>
+</section>
+
+<section id="s6">
+  <h2>6. Teste seu entendimento</h2>
+  <div class="panel" id="quiz"></div>
+</section>
+</div>
+
+<script>
+const TC=['var(--t1)','var(--t2)','var(--t3)','var(--t4)'];
+const TN=['A','B','C','D'];
+
+/* 1. memória */
+const nT=document.getElementById('nThreads');
+function drawMem(){
+  const n=+nT.value; document.getElementById('nThreadsVal').textContent=n;
+  const box=document.getElementById('memThreads'); box.innerHTML='';
+  for(let i=0;i<n;i++){
+    const d=document.createElement('div'); d.className='tcol'; d.style.setProperty('--tc',TC[i]);
+    d.innerHTML=`<div class="tag">Thread ${TN[i]}</div><div class="cell">Registradores</div><div class="cell">PC</div><div class="cell">Pilha</div>`;
+    box.appendChild(d);
+  }
+  document.getElementById('memNote').textContent = n===1
+    ? 'Um processo tradicional: uma só thread, um só caminho de execução.'
+    : `${n} threads, ${n} pilhas e ${n} PCs. O código, os dados e o heap continuam sendo um só, por isso uma thread vê o que a outra gravou.`;
+}
+nT.addEventListener('input',drawMem); drawMem();
+
+/* 3. modelos */
+const models={
+  m1:{u:4,k:1,map:[0,0,0,0],note:'Muitas threads de usuário ligadas a uma só de kernel. Barato, mas se uma bloqueia (por exemplo esperando um disco), todas param. E só uma roda por vez, mesmo com vários núcleos.'},
+  '11':{u:4,k:4,map:[0,1,2,3],note:'Cada thread de usuário tem a sua de kernel. Várias podem rodar em paralelo e uma bloqueada não trava as outras. Custo: cada thread nova exige criar uma thread no kernel. É o modelo do Linux e do Windows.'},
+  mm:{u:5,k:3,map:[0,0,1,2,2],note:'Muitas threads de usuário sobre um número menor (ou igual) de threads de kernel. O sistema pode ajustar quantas threads de kernel usar. Flexível, mas mais complexo de implementar.'}
+};
+function drawModel(key){
+  const m=models[key], svg=document.getElementById('modelSvg'); let s='';
+  const ux=i=>60+i*(400/(m.u-1||1)), kx=i=>60+i*(400/(m.k-1||1));
+  s+=`<text x="10" y="40" font-size="12" fill="var(--muted)">usuário</text>`;
+  s+=`<text x="10" y="180" font-size="12" fill="var(--muted)">kernel</text>`;
+  s+=`<line x1="0" y1="108" x2="520" y2="108" stroke="var(--line)" stroke-dasharray="4 4"/>`;
+  m.map.forEach((k,i)=>{s+=`<line x1="${ux(i)}" y1="50" x2="${kx(k)}" y2="165" stroke="var(--muted)" stroke-width="1.5"/>`});
+  for(let i=0;i<m.u;i++) s+=`<circle cx="${ux(i)}" cy="40" r="13" fill="${TC[i%4]}"/>`;
+  for(let i=0;i<m.k;i++) s+=`<rect x="${kx(i)-13}" y="165" width="26" height="26" rx="4" fill="var(--ink)"/>`;
+  svg.innerHTML=s; document.getElementById('modelNote').textContent=m.note;
+}
+document.querySelectorAll('#modelBtns button').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('#modelBtns button').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active'); drawModel(b.dataset.m);
+}));
+drawModel('m1');
+
+/* 4. escalonador */
+const WORK=3; let sch;
+const $=id=>document.getElementById(id);
+function schInit(){
+  const n=+$('schThreads').value, c=+$('schCores').value;
+  $('schThreadsVal').textContent=n; $('schCoresVal').textContent=c;
+  sch={n,c,rem:Array(n).fill(WORK),queue:[...Array(n).keys()],hist:[],t:0};
+  schDraw();
+}
+function schDone(){return sch.rem.every(r=>r===0)}
+function schTick(){
+  if(schDone()) return;
+  const col=Array(sch.c).fill(null), next=[];
+  for(let core=0;core<sch.c && sch.queue.length;core++){
+    const th=sch.queue.shift(); col[core]=th; sch.rem[th]--; if(sch.rem[th]>0) next.push(th);
+  }
+  sch.queue.push(...next); sch.hist.push(col); sch.t++; schDraw();
+}
+function schDraw(){
+  let h='<table><tr><th></th>'+sch.hist.map((_,i)=>`<th>t${i}</th>`).join('')+'</tr>';
+  for(let core=0;core<sch.c;core++){
+    h+=`<tr><th>Núcleo ${core}</th>`+sch.hist.map(col=>col[core]===null?'<td class="idle">-</td>':`<td style="background:${TC[col[core]]}">${TN[col[core]]}</td>`).join('')+'</tr>';
+  }
+  $('schTimeline').innerHTML=h+'</table>';
+  $('schLegend').innerHTML=[...Array(sch.n).keys()].map(i=>`<span style="--tc:${TC[i]}">Thread ${TN[i]}: falta ${sch.rem[i]}</span>`).join('');
+  $('schQueue').textContent='Fila de prontos: '+(sch.queue.length?sch.queue.map(i=>TN[i]).join(' → '):'vazia');
+  const total=sch.n*WORK;
+  $('schNote').textContent = schDone()
+    ? `Terminou em ${sch.t} ticks para ${total} unidades de trabalho. Cada mudança de letra em um núcleo foi uma troca de contexto.`
+    : `Cada tick é um quantum. A thread que sai volta ao fim da fila.`;
+}
+$('schStep').onclick=schTick;
+$('schRun').onclick=()=>{while(!schDone()) schTick();};
+$('schReset').onclick=schInit;
+$('schThreads').oninput=schInit; $('schCores').oninput=schInit; schInit();
+
+/* 5. corrida */
+const INS=['LOAD  reg ← contador','ADD   reg ← reg + 1','STORE contador ← reg'];
+let race;
+function raceInit(){
+  race={counter:0,pc:[0,0],reg:[null,null],lock:null,log:[]};
+  $('raceVerdict').textContent=''; $('raceVerdict').className='verdict'; raceDraw();
+}
+function raceStep(t){
+  const lock=$('useLock').checked, other=1-t;
+  if(race.pc[t]>=3) return;
+  if(lock && race.lock!==null && race.lock!==t) return;
+  const name=TN[t], step=race.pc[t];
+  if(step===0){ if(lock){race.lock=t; race.log.push(`${name} pega o lock`);} race.reg[t]=race.counter; race.log.push(`${name} LOAD: lê contador = ${race.counter}`); }
+  else if(step===1){ race.reg[t]++; race.log.push(`${name} ADD: reg vira ${race.reg[t]}`); }
+  else { race.counter=race.reg[t]; race.log.push(`${name} STORE: grava contador = ${race.counter}`); if(lock){race.lock=null; race.log.push(`${name} devolve o lock`);} }
+  race.pc[t]++; raceDraw();
+  if(race.pc[0]===3&&race.pc[1]===3){
+    const v=$('raceVerdict');
+    if(race.counter===2){v.textContent='Resultado 2. Correto: cada soma foi vista pela outra thread.';v.className='verdict ok';}
+    else{v.textContent=`Resultado ${race.counter}. Errado! Uma thread leu o valor antigo antes da outra gravar, e sobrescreveu a soma dela.`;v.className='verdict bad';}
+  }
+}
+function raceDraw(){
+  const lock=$('useLock').checked;
+  [0,1].forEach(t=>{
+    $('instr'+TN[t]).innerHTML=INS.map((s,i)=>`<div class="instr ${i<race.pc[t]?'done':i===race.pc[t]?'next':''}">${s}</div>`).join('');
+    $('reg'+TN[t]).textContent='reg = '+(race.reg[t]===null?'?':race.reg[t]);
+    const blocked=lock&&race.lock!==null&&race.lock!==t;
+    $('step'+TN[t]).disabled=race.pc[t]>=3||blocked;
+    $('step'+TN[t]).textContent=blocked?`Thread ${TN[t]} esperando o lock`:`Passo da Thread ${TN[t]}`;
+  });
+  $('counterVal').textContent=race.counter;
+  $('lockState').textContent=lock?(race.lock===null?'lock: livre':`lock: com a Thread ${TN[race.lock]}`):'sem lock';
+  $('stepRnd').disabled=race.pc[0]>=3&&race.pc[1]>=3;
+  $('raceLog').innerHTML=race.log.length?race.log.map(l=>`<div>${l}</div>`).join(''):'<span style="color:var(--muted)">Nenhum passo ainda.</span>';
+  $('raceLog').scrollTop=1e6;
+}
+$('stepA').onclick=()=>raceStep(0); $('stepB').onclick=()=>raceStep(1);
+$('stepRnd').onclick=()=>{
+  const lock=$('useLock').checked;
+  const ok=[0,1].filter(t=>race.pc[t]<3&&!(lock&&race.lock!==null&&race.lock!==t));
+  if(ok.length) raceStep(ok[Math.floor(Math.random()*ok.length)]);
+};
+$('raceReset').onclick=raceInit; $('useLock').onchange=raceInit; raceInit();
+
+/* 6. quiz */
+const QUIZ=[
+ {q:'O que duas threads do mesmo processo NÃO compartilham?',o:['O código do programa','O heap','A pilha','Os arquivos abertos'],a:2,why:'Cada thread tem a própria pilha (e PC e registradores). Código, heap e arquivos são do processo.'},
+ {q:'Um processo com 8 threads roda em uma máquina de 1 núcleo. Em um dado instante, quantas threads executam?',o:['8','4','1','Depende do modelo'],a:2,why:'Um núcleo executa uma thread por vez. As outras esperam na fila: isso é concorrência, não paralelismo.'},
+ {q:'No modelo muitos-para-um, o que acontece se uma thread de usuário faz uma chamada bloqueante?',o:['Só ela espera','Todas as threads do processo param','O kernel cria outra thread','Nada, o modelo não permite bloqueio'],a:1,why:'Existe uma só thread de kernel para todas. Se ela bloqueia, o processo inteiro para.'},
+ {q:'O que o kernel salva em uma troca de contexto entre threads?',o:['O heap inteiro','Registradores e contador de programa','O código do programa','Os arquivos abertos'],a:1,why:'O estado privado da thread é o que precisa ser salvo e restaurado. A memória compartilhada continua onde está.'},
+ {q:'Por que "contador = contador + 1" pode dar errado com duas threads?',o:['Porque a soma é lenta','Porque são três passos e a troca de thread pode ocorrer entre eles','Porque threads não veem a mesma variável','Porque o resultado passa de 255'],a:1,why:'LOAD, ADD e STORE são separados. Se a Thread B lê antes de A gravar, uma soma se perde.'}
+];
+$('quiz').innerHTML=QUIZ.map((x,i)=>`<div class="q"><p>${i+1}. ${x.q}</p>${x.o.map((o,j)=>`<label><input type="radio" name="q${i}" value="${j}"> ${o}</label>`).join('')}<div class="fb" id="fb${i}"></div></div>`).join('');
+QUIZ.forEach((x,i)=>document.querySelectorAll(`input[name=q${i}]`).forEach(r=>r.onchange=()=>{
+  const fb=$('fb'+i), ok=+r.value===x.a;
+  fb.textContent=(ok?'Certo. ':'Não é essa. ')+x.why; fb.className='fb '+(ok?'ok':'bad');
+}));
+</script>
